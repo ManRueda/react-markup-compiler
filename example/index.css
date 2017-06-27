@@ -1,0 +1,9 @@
+@font-face {
+  font-family: 'CaviarDreams';
+  src: url('CaviarDreams.ttf')  format('truetype');
+}
+
+body {
+  font-family: CaviarDreams;
+  background-color: red;
+}
