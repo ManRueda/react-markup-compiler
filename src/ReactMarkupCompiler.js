@@ -23,6 +23,10 @@ class ReactMarkupCompiler {
     this.normalizePaths(this.options, compiler)
     const options = this.options
 
+    if (compiler.options.devServer && compiler.options.devServer.inline !== false) {
+      throw new Error('Sorry, ReactMarkupCompiler does not work with webpack-dev-server in inline mode... yet')
+    }
+
     compiler.plugin('emit', (compilation, callback) => {
       for (let fileName in compilation.assets) {
         if (options.entry === fileName) {
@@ -33,7 +37,6 @@ class ReactMarkupCompiler {
           } catch (err) {
             return callback()
           }
-
           const code = '<!DOCTYPE html>\n' + ReactDOMServer.renderToStaticMarkup(reactRootComponent)
 
           compilation.fileDependencies.push(options.filename)
