@@ -1,31 +1,59 @@
+'use strict'
 const ReactDOMServer = require('react-dom/server')
 const path = require('path')
 
-function ReactMarkupCompiler (assets) {
-  this.assets = assets
-}
+class ReactMarkupCompiler {
+  constructor (options) {
+    if (arguments.length > 1) {
+      throw new Error('ReactMarkupCompiler only takes one argument (pass an options object)')
+    }
 
-ReactMarkupCompiler.prototype.apply = function (compiler) {
-  compiler.plugin('compilation', (compilation) => {
-    compilation.plugin('additional-assets', (callback) => {
+    if (typeof options === 'string') {
+      options = {
+        entry: options
+      }
+    }
+
+    this.options = options || {}
+
+    this.options.filename = this.options.filename || this.defaultFilename()
+  }
+
+  apply (compiler) {
+    this.normalizePaths(this.options, compiler)
+    const options = this.options
+
+    compiler.plugin('emit', (compilation, callback) => {
       for (let fileName in compilation.assets) {
-        if (this.assets.includes(fileName)) {
-          const source = compilation.assets[fileName].node()
+        if (options.entry === fileName) {
+          const asset = compilation.assets[fileName]
+          let reactRootComponent
+          try {
+            reactRootComponent = eval(asset.source()).default()
+          } catch (err) {
+            return callback()
+          }
 
-          const def = eval(source.toString())
-          const code = ReactDOMServer.renderToStaticMarkup(def.default())
+          const code = '<!DOCTYPE html>\n' + ReactDOMServer.renderToStaticMarkup(reactRootComponent)
 
-          const outputName = `${path.basename(fileName, path.extname(fileName))}`
-          compilation.fileDependencies.push(`${outputName}.html`)
-          compilation.assets[`${outputName}.html`] = {
+          compilation.fileDependencies.push(options.filename)
+          compilation.assets[options.filename] = {
             source: () => code,
             size: () => code.length
           }
         }
       }
-      callback()
+      callback(null, compilation)
     })
-  })
+  }
+  normalizePaths (options, compiler) {
+    if (path.resolve(options.filename) === path.normalize(options.filename)) {
+      options.filename = path.relative(compiler.options.output.path, options.filename)
+    }
+  }
+  defaultFilename () {
+    return `${path.basename(this.options.entry, path.extname(this.options.entry))}.html`
+  }
 }
 
 module.exports = ReactMarkupCompiler
